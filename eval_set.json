@@ -1,0 +1,234 @@
+{
+  "description": "Evaluation set for the PostgreSQL documentation RAG system, covering Chapters 11 (Indexes), 12 (Full Text Search), 24 (Routine Maintenance) and 25 (Backup and Restore). Q01-Q12 test retrieval precision, citation, faithfulness and cross-section reasoning. Q13-Q22 are adversarial out-of-corpus questions: they ask about PostgreSQL features documented in OTHER chapters, phrased in the vocabulary of the indexed ones, which is the case a distance threshold is worst at. All questions were written by the author of the system; this set is a smoke test, not an independent benchmark.",
+  "questions": [
+    {
+      "id": "Q01",
+      "question": "What comparison operators does a B-tree index support?",
+      "expected_answer": "B-tree indexes support the following operators: <, <=, =, >=, >. They can also handle BETWEEN, IN, IS NULL, and IS NOT NULL conditions. Additionally, they support LIKE and ~ pattern matching when the pattern is anchored to the beginning of the string.",
+      "expected_sources": [
+        "11.2.1"
+      ],
+      "type": "factual",
+      "metric": "context_hit",
+      "notes": "Tests whether the most relevant chunk (11.2.1 B-Tree) is retrieved as top-1."
+    },
+    {
+      "id": "Q02",
+      "question": "What is the only comparison operator supported by Hash indexes?",
+      "expected_answer": "Hash indexes can only handle simple equality comparisons using the = operator.",
+      "expected_sources": [
+        "11.2.2"
+      ],
+      "type": "factual",
+      "metric": "context_hit",
+      "notes": "Short factual answer; tests precision on a specific index type."
+    },
+    {
+      "id": "Q03",
+      "question": "What PostgreSQL index type is created by default with CREATE INDEX?",
+      "expected_answer": "By default, the CREATE INDEX command creates a B-tree index.",
+      "expected_sources": [
+        "11.2"
+      ],
+      "type": "factual",
+      "metric": "context_hit",
+      "notes": "Tests retrieval of the Index Types overview section."
+    },
+    {
+      "id": "Q04",
+      "question": "What is the syntax to create a Hash index in PostgreSQL?",
+      "expected_answer": "CREATE INDEX name ON table USING HASH (column);",
+      "expected_sources": [
+        "11.2"
+      ],
+      "type": "code_block",
+      "metric": "context_hit + citation_present",
+      "notes": "Verifies that code blocks extracted from the HTML are retrievable and cited."
+    },
+    {
+      "id": "Q05",
+      "question": "What does a tsvector represent in PostgreSQL full text search?",
+      "expected_answer": "A tsvector is a sorted list of distinct lexemes (normalized word forms) extracted from a document, optionally with position information. It is the data type used to represent a preprocessed document for full text search.",
+      "expected_sources": [
+        "12.1.1",
+        "12.1.2"
+      ],
+      "type": "factual",
+      "metric": "context_hit",
+      "notes": "Tests retrieval from Chapter 12 Introduction section."
+    },
+    {
+      "id": "Q06",
+      "question": "How do you perform a basic full text search query in PostgreSQL to match a document against a query?",
+      "expected_answer": "You use the @@ operator: to_tsvector('english', document_text) @@ to_tsquery('english', 'search_terms'). The to_tsvector function converts a document to a tsvector and to_tsquery converts a search string to a tsquery.",
+      "expected_sources": [
+        "12.1",
+        "12.1.1",
+        "12.1.2"
+      ],
+      "type": "factual_with_code",
+      "metric": "context_hit + citation_present",
+      "notes": "Tests retrieval from Chapter 12 intro sections. The @@ operator is introduced across 12.1 and 12.1.2."
+    },
+    {
+      "id": "Q07",
+      "question": "What does VACUUM do in PostgreSQL and why is it necessary?",
+      "expected_answer": "VACUUM reclaims storage space occupied by dead tuples (rows that have been updated or deleted). It is necessary because PostgreSQL's MVCC mechanism does not immediately remove deleted or outdated rows from tables, leaving dead tuples that accumulate over time.",
+      "expected_sources": [
+        "24.1",
+        "24.1.1",
+        "24.1.2"
+      ],
+      "type": "factual",
+      "metric": "context_hit",
+      "notes": "Tests retrieval from Chapter 24 Routine Vacuuming."
+    },
+    {
+      "id": "Q08",
+      "question": "What is the difference between VACUUM and VACUUM FULL?",
+      "expected_answer": "A standard VACUUM marks dead tuple space as reusable for future inserts within the same table but does not return the space to the OS. VACUUM FULL rewrites the entire table to a new file, actually returning disk space to the OS, but it requires an exclusive lock on the table during the operation, making it impractical in production unless necessary.",
+      "expected_sources": [
+        "24.1.2"
+      ],
+      "type": "comparison",
+      "metric": "context_hit + faithfulness",
+      "notes": "Tests nuanced retrieval; the answer requires understanding both behaviors."
+    },
+    {
+      "id": "Q09",
+      "question": "What is pg_dump and what does it produce?",
+      "expected_answer": "pg_dump is a PostgreSQL utility for creating logical backups of a database. It produces a script of SQL commands (or an equivalent archive file) that, when executed, recreates the database to the state it was in at the time of the dump. It only dumps one database at a time.",
+      "expected_sources": [
+        "25.1"
+      ],
+      "type": "factual",
+      "metric": "context_hit",
+      "notes": "Tests retrieval from Chapter 25 SQL Dump section."
+    },
+    {
+      "id": "Q10",
+      "question": "How does WAL archiving work in PostgreSQL and what do I need to configure to enable it?",
+      "expected_answer": "WAL archiving works by copying completed WAL segment files to an archive location using the archive_command configured in postgresql.conf. You need to set archive_mode = on and define an archive_command (e.g. a cp or rsync command). This is the foundation for Point-in-Time Recovery (PITR): combined with a base backup, archived WAL files allow recovery to any point in time.",
+      "expected_sources": [
+        "25.3",
+        "25.3.1",
+        "25.3.2"
+      ],
+      "type": "conceptual",
+      "metric": "context_hit + citation_present",
+      "notes": "Tests multi-chunk retrieval from the PITR section."
+    },
+    {
+      "id": "Q11",
+      "question": "I want to speed up full text searches on a large table that stores articles. Should I use a GIN or GiST index, and what are the trade-offs?",
+      "expected_answer": "For full text search on large tables, GIN indexes are generally preferred because they are faster for lookups. GiST indexes are lossy (use bloom filters) which means they can produce false matches requiring a second pass, but they are faster to build and update, and use less disk space. GIN is the right choice when read performance is the priority; GiST is better when the column is frequently updated.",
+      "expected_sources": [
+        "11.2.3",
+        "11.2.5",
+        "12.2.2",
+        "12.9"
+      ],
+      "type": "cross_section",
+      "metric": "context_hit + faithfulness + citation_present",
+      "notes": "CROSS-SECTION QUESTION: requires combining Chapter 11 (index types GIN/GiST) with Chapter 12 (preferred index types for text search). This is the multi-section reasoning test."
+    },
+    {
+      "id": "Q12",
+      "question": "How do I configure pg_hba.conf to allow remote connections to PostgreSQL?",
+      "expected_answer": "NOT_IN_CORPUS",
+      "expected_sources": [],
+      "type": "out_of_corpus",
+      "metric": "no_hallucination",
+      "notes": "OUT-OF-CORPUS: pg_hba.conf configuration is covered in Chapter 21 (Client Authentication), which is outside the indexed chapters (11, 12, 24, 25). The system must respond with 'not found' rather than hallucinating an answer."
+    },
+    {
+      "id": "Q13",
+      "question": "How do I rebuild a bloated index with REINDEX CONCURRENTLY?",
+      "expected_answer": "Indexes must be rebuilt periodically because of page splits and bloat; REINDEX rebuilds an index from scratch, and REINDEX CONCURRENTLY avoids locking out writes on the table.",
+      "expected_sources": [
+        "24.2"
+      ],
+      "type": "factual",
+      "metric": "context_hit",
+      "notes": "Adjacent to Chapter 24's scope and genuinely covered by 24.2 Routine Reindexing, so this must be ACCEPTED. Included because its wording resembles the out-of-corpus questions below."
+    },
+    {
+      "id": "Q14",
+      "question": "What is the default value of autovacuum_naptime and where do I set it?",
+      "expected_sources": [],
+      "type": "out_of_corpus",
+      "metric": "no_hallucination",
+      "notes": "Autovacuum is described in 24.1.6, but its configuration parameters are documented in Chapter 20 (Server Configuration). Nearest chunk is the right topic at the wrong level of detail."
+    },
+    {
+      "id": "Q15",
+      "question": "Can I use pg_upgrade to migrate my cluster to a new major version?",
+      "expected_sources": [],
+      "type": "out_of_corpus",
+      "metric": "no_hallucination",
+      "notes": "pg_upgrade is Chapter 19. Retrieval lands on 25.3.5 (recovering from an archive backup) because both concern moving a cluster's data. This question defeated the original 0.58 threshold."
+    },
+    {
+      "id": "Q16",
+      "question": "How do I benchmark index performance with pgbench?",
+      "expected_sources": [],
+      "type": "out_of_corpus",
+      "metric": "no_hallucination",
+      "notes": "pgbench is a client application, not in these chapters. Retrieval lands on 11.12 Examining Index Usage. This question defeated the original 0.58 threshold and set the new one."
+    },
+    {
+      "id": "Q17",
+      "question": "How does logical replication differ from physical replication for backups?",
+      "expected_sources": [],
+      "type": "out_of_corpus",
+      "metric": "no_hallucination",
+      "notes": "Logical replication is Chapter 29. Chapter 25 covers physical/base backups only."
+    },
+    {
+      "id": "Q18",
+      "question": "What is the maximum size of a tsvector value?",
+      "expected_sources": [],
+      "type": "out_of_corpus",
+      "metric": "no_hallucination",
+      "notes": "tsvector limits are in Chapter 8 (Data Types); 12.11 Limitations is the nearest chunk but does not carry the figure."
+    },
+    {
+      "id": "Q19",
+      "question": "What is the internal page format of a WAL record?",
+      "expected_sources": [],
+      "type": "out_of_corpus",
+      "metric": "no_hallucination",
+      "notes": "WAL internals are Chapter 28. Chapter 25 uses WAL for archiving without documenting its format."
+    },
+    {
+      "id": "Q20",
+      "question": "How do I set up streaming replication between a primary and a standby server?",
+      "expected_sources": [],
+      "type": "out_of_corpus",
+      "metric": "no_hallucination",
+      "notes": "Streaming replication is Chapter 27."
+    },
+    {
+      "id": "Q21",
+      "question": "How do I grant a role membership to another role?",
+      "expected_sources": [],
+      "type": "out_of_corpus",
+      "metric": "no_hallucination",
+      "notes": "Roles and privileges are Chapter 22."
+    },
+    {
+      "id": "Q22",
+      "question": "What is the best pizza topping in Naples?",
+      "expected_sources": [],
+      "type": "out_of_corpus",
+      "metric": "no_hallucination",
+      "notes": "Control case: entirely off-domain, should be rejected by a wide margin."
+    }
+  ],
+  "metrics_description": {
+    "context_hit": "The expected source section appears in the top-3 retrieved chunks. Measured without any LLM call.",
+    "citation_present": "The generated answer explicitly mentions the chapter number and section number or title. Binary: 1 or 0.",
+    "faithfulness": "The generated answer does not contain claims contradicted by or absent from the retrieved context. Measured by LLM-as-judge (requires GEMINI_API_KEY or ANTHROPIC_API_KEY).",
+    "no_hallucination": "For out-of-corpus questions, the system responds with 'not found' or equivalent rather than inventing an answer. Binary: 1 or 0."
+  }
+}
